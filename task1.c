@@ -93,7 +93,7 @@ int main() {
                         case 4:
                             check = 1;
                             break;
-                        case 5: // TODO Прописать невозможность присвоить себе + "12345"
+                        case 5:
                             printf("Enter a username and a limit on the number of commands\n");
                             scanf("%s %d", user_name, &number);
                             clear_input_buffer();
