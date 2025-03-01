@@ -9,6 +9,7 @@ typedef enum errors {
     OK,
     INVALID_INPUT,
     MEMORY_ERROR,
+    FILE_ERROR,
     NOT_FOUND,
     FOUND,
 } error;
@@ -43,6 +44,12 @@ void lower_menu();
 
 error Sanctions(user **users, const char *name, unsigned int number, int count_user, int current_id);
 
+void save_users_to_file(user *users, int count_of_users);
+
+error load_users_from_file(user **users, int *count_of_users, int *capacity);
+
+void update_sanctions_in_file(const char *filename, const char *login, int new_sanctions);
+
 int main() {
     char flag[2], user_name[7];
     int current_id = -1, check = 0, login_command, count_command = 0, exit = 1, time, number;
@@ -53,13 +60,20 @@ int main() {
         return MEMORY_ERROR;
     }
 
+    if (load_users_from_file(&users, &user_count, &capacity) != OK) {
+        printf("Error loading users from file\n");
+        return FILE_ERROR;
+    }
+
     lower_menu();
     scanf("%d", &reg);
 
     while (exit){
         switch (reg) {
             case 1:
-                registration(&users, &user_count, &capacity);
+                if (registration(&users, &user_count, &capacity) == OK) {
+                    save_users_to_file(users, user_count);
+                }
 
                 lower_menu();
                 scanf("%d", &reg);
@@ -99,6 +113,7 @@ int main() {
 
                             if (Sanctions(&users, user_name, number, user_count, current_id) == FOUND) {
                                 printf("Successful\n");
+                                update_sanctions_in_file("logins.txt", user_name, number);
                             } else {
                                 printf("Error\n");
                             }
@@ -187,6 +202,7 @@ error registration(user **users, int *count_of_user, int *capacity) {
 
         if (nickname[6] != '\0') {
             printf("Incorrect input. \n");
+            nickname[6] = '\0';
             continue;
         }
 
@@ -330,4 +346,84 @@ void lower_menu() {
     printf("------------------------------------------------\n");
     printf("1 - sign up, 2 - log in, 3 - exit\n");
     printf("------------------------------------------------\n");
+}
+
+void save_users_to_file(user *users, int count_of_users) {
+    if (!users) {
+        return;
+    }
+
+    int i;
+    FILE *file = fopen("logins.txt", "w");
+
+    if (!file) {
+        printf("Error opening file for saving users\n");
+        return;
+    }
+
+    for (i = 0; i < count_of_users; i++) {
+        fprintf(file, "%s %u %d\n", users[i].login, users[i].Pin_code, users[i].sanctions);
+    }
+
+    fclose(file);
+}
+
+error load_users_from_file(user **users, int *count_of_users, int *capacity) {
+    if (!users || !count_of_users || !capacity) {
+        return MEMORY_ERROR;
+    }
+
+    FILE *file = fopen("logins.txt", "r");
+    if (!file) {
+        return FILE_ERROR;
+    }
+
+    user temp;
+    while (fscanf(file, "%s %u %d", temp.login, &temp.Pin_code, &temp.sanctions) == 3) {
+        if (*count_of_users == *capacity) {
+            *capacity *= 2;
+            user *new_users = (user *) realloc(*users, (*capacity) * sizeof(user));
+            if (!new_users) {
+                fclose(file);
+                return MEMORY_ERROR;
+            }
+            *users = new_users;
+        }
+        (*users)[(*count_of_users)++] = temp;
+    }
+
+    fclose(file);
+    return OK;
+}
+
+void update_sanctions_in_file(const char *filename, const char *login, int new_sanctions) {
+    if (!filename || !login) {
+        return;
+    }
+
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        printf("Ошибка открытия файла!\n");
+        return;
+    }
+
+    FILE *temp = fopen("temp.txt", "w");
+    if (!temp) {
+        printf("Ошибка открытия временного файла!\n");
+        fclose(file);
+        return;
+    }
+
+    user temp_user;
+    while (fscanf(file, "%s %u %d", temp_user.login, &temp_user.Pin_code, &temp_user.sanctions) == 3) {
+        if (strcmp(temp_user.login, login) == 0) {
+            temp_user.sanctions = new_sanctions;
+        }
+        fprintf(temp, "%s %u %d\n", temp_user.login, temp_user.Pin_code, temp_user.sanctions);
+    }
+
+    fclose(file);
+    fclose(temp);
+    remove(filename);
+    rename("temp.txt", filename);
 }
