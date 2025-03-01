@@ -70,9 +70,8 @@ int main() {
                     scanf("%d", &reg);
                     break;
                 }
-                // current_id будет отвечать за то, в каком пользователе мы находимся
 
-                while (check == 0 && users[current_id].sanctions != count_command) { // Либо logout, либо предел команд
+                while (check == 0 && users[current_id].sanctions != count_command) {
                     main_menu();
                     scanf("%d", &login_command);
                     ++count_command;
@@ -170,19 +169,26 @@ error registration(user **users, int *count_of_user, int *capacity) {
     int i;
     bool check = false;
     char nickname[7];
+    user *realloc_user;
 
     if (*count_of_user == *capacity) {
         *capacity *= 2;
-        *users = (user *) realloc(*users, *capacity * sizeof (user));
-        if (!(*users)) {
+        realloc_user = (user *) realloc(*users, *capacity * sizeof (user));
+        if (!realloc_user) {
             return MEMORY_ERROR;
         }
+        *users = realloc_user;
     }
 
     do {
         printf("Write your login for registration: \n");
-        scanf("%6s", nickname);
+        scanf("%7s", nickname);
         clear_input_buffer();
+
+        if (nickname[6] != '\0') {
+            printf("Incorrect input. \n");
+            continue;
+        }
 
         for (i = 0; i < *count_of_user; ++i) {
             if (strcmp((*users)[i].login, nickname) == 0) {
@@ -314,10 +320,14 @@ void Howmuch(time_t past_time, char *flag) {
 }
 
 void main_menu() {
+    printf("------------------------------------------------\n");
     printf("Write the following action in text.\n1 - Output the current time\n2 - Output the current date\n"
            "3 - View the elapsed time\n4 - Logout\n5 - Set a limit on the number of operations\n");
+    printf("------------------------------------------------\n");
 }
 
 void lower_menu() {
+    printf("------------------------------------------------\n");
     printf("1 - sign up, 2 - log in, 3 - exit\n");
+    printf("------------------------------------------------\n");
 }
