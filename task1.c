@@ -26,6 +26,8 @@ error check_correct_PIN(unsigned int Pin);
 
 void clear_input_buffer();
 
+error registration_login(user **users, const int *count_of_user, int *capacity, char *reg_name);
+
 error registration(user **users, int *count_of_users, int *capacity);
 
 void Time();
@@ -51,10 +53,12 @@ error load_users_from_file(user **users, int *count_of_users, int *capacity);
 error update_sanctions_in_file(const char *filename, const char *login, int new_sanctions);
 
 int main() {
-    char flag[2], user_name[7], login_name[7];
+    char flag[2], user_name[7], login_name[7], reg_name[7];
     char check_input[10];
     int current_id = -1, check = 0, exit = 1, time, number, pass, j = -1, answer;
     int reg, capacity = 2, user_count = 0;
+    unsigned int reg_pass;
+    bool check_reg = false;
     user *users = (user *) malloc (capacity * sizeof(user));
     if (!users) {
         printf("Memory error\n");
@@ -74,10 +78,51 @@ int main() {
         switch (reg) {
             case 1:
                 // Регистрация + Перекидывание юзера в файл
-                if (registration(&users, &user_count, &capacity) == OK) {
-                    if (save_users_to_file(users, user_count) != OK) {
-                        printf("Error opening file for saving users\n");
+
+                do {
+                    printf("Write your login for registration: \n");
+                    scanf("%7s", reg_name);
+                    clear_input_buffer();
+
+                    if (reg_name[6] != '\0') {
+                        printf("Incorrect input. \n");
+                        reg_name[6] = '\0';
+                        continue;
                     }
+
+                    if (registration_login(&users, &user_count, &capacity, reg_name) == FOUND) {
+                        printf("This login already exists\n");
+                        continue;
+                    }
+
+                    if (check_correct_login(reg_name) != OK) {
+                        printf("Incorrect input. \n");
+                    } else {
+                        check_reg = true;
+                    }
+                } while (check_reg == false);
+                check_reg = false;
+
+                do {
+                    printf("Write your password for registration: \n");
+                    scanf("%u", &reg_pass);
+                    clear_input_buffer();
+                    if (check_correct_PIN(reg_pass) != OK) {
+                        printf("Incorrect input. \n");
+                    } else {
+                        check_reg = true;
+                    }
+                } while (check_reg == false);
+
+                strcpy((users)[user_count].login, reg_name);
+                (users)[user_count].Pin_code = reg_pass;
+                (users)[user_count].sanctions = -3;
+                ++(user_count);
+
+                printf("Registration successful\n");
+
+                if (save_users_to_file(users, user_count) != OK) {
+                    printf("Error opening file for saving users\n");
                 }
 
                 lower_menu();
@@ -113,7 +158,7 @@ int main() {
                         Date();
                     } else if (strcmp(check_input, "Howmuch") == 0) {
                         printf("Enter the time and the flag\n");
-                        scanf("%d %s", &time, flag);
+                        scanf("%d %2s", &time, flag);
                         clear_input_buffer();
                         Howmuch(time, flag);
                     } else if (strcmp(check_input, "Logout") == 0) {
@@ -126,7 +171,7 @@ int main() {
 
                     } else if (strcmp(check_input, "Sanctions") == 0) {
                         printf("Enter a username and a limit on the number of commands\n");
-                        scanf("%s %d", user_name, &number);
+                        scanf("%7s %d", user_name, &number);
                         clear_input_buffer();
 
                         if (Sanctions(&users, user_name, user_count, current_id, &j) == FOUND) {
@@ -209,17 +254,12 @@ void clear_input_buffer() {
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
-
-
-error registration(user **users, int *count_of_user, int *capacity) {
-    if (!users || !count_of_user || !capacity) {
+error registration_login(user **users, const int *count_of_user, int *capacity, char *reg_name) {
+    if (!users || !count_of_user || !capacity || !reg_name) {
         return MEMORY_ERROR;
     }
 
-    unsigned int pass;
     int i;
-    bool check = false;
-    char nickname[7];
     user *realloc_user;
 
     if (*count_of_user == *capacity) {
@@ -231,49 +271,13 @@ error registration(user **users, int *count_of_user, int *capacity) {
         *users = realloc_user;
     }
 
-    do {
-        printf("Write your login for registration: \n");
-        scanf("%7s", nickname);
-        clear_input_buffer();
-
-        if (nickname[6] != '\0') {
-            printf("Incorrect input. \n");
-            nickname[6] = '\0';
-            continue;
+    for (i = 0; i < *count_of_user; ++i) {
+        if (strcmp((*users)[i].login, reg_name) == 0) {
+            return FOUND;
         }
+    }
 
-        for (i = 0; i < *count_of_user; ++i) {
-            if (strcmp((*users)[i].login, nickname) == 0) {
-                printf("This login already exists\n");
-                return FOUND;
-            }
-        }
-
-        if (check_correct_login(nickname) != OK) {
-            printf("Incorrect input. \n");
-        } else {
-            check = true;
-        }
-    } while (check == false);
-    check = false;
-
-    do {
-        printf("Write your password for registration: \n");
-        scanf("%u", &pass);
-        clear_input_buffer();
-        if (check_correct_PIN(pass) != OK) {
-            printf("Incorrect input. \n");
-        } else {
-            check = true;
-        }
-    } while (check == false);
-
-    strcpy((*users)[*count_of_user].login, nickname);
-    (*users)[*count_of_user].Pin_code = pass;
-    (*users)[*count_of_user].sanctions = -3;
-    ++(*count_of_user);
-
-    return OK;
+    return NOT_FOUND;
 }
 
 void Time() {
