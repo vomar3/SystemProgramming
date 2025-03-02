@@ -53,7 +53,7 @@ void update_sanctions_in_file(const char *filename, const char *login, int new_s
 int main() {
     char flag[2], user_name[7];
     char check_input[10];
-    int current_id = -1, check = 0, login_command, count_command = 0, exit = 1, time, number;
+    int current_id = -1, check = 0, login_command, exit = 1, time, number;
     int reg, capacity = 2, user_count = 0;
     user *users = (user *) malloc (capacity * sizeof(user));
     if (!users) {
@@ -69,7 +69,7 @@ int main() {
     lower_menu();
     scanf("%d", &reg);
 
-    while (exit){
+    while (exit) {
         switch (reg) {
             case 1:
                 if (registration(&users, &user_count, &capacity) == OK) {
@@ -86,11 +86,11 @@ int main() {
                     break;
                 }
 
-                while (check == 0 && users[current_id].sanctions != count_command) {
+                while (check == 0 && users[current_id].sanctions != 0) {
                     main_menu();
-                    //scanf("%d", &login_command);
                     scanf("%s", check_input);
-                    ++count_command;
+                    clear_input_buffer();
+                    --users[current_id].sanctions;
 
                     if (strcmp(check_input, "Time") == 0) {
                         Time();
@@ -103,6 +103,9 @@ int main() {
                         Howmuch(time, flag);
                     } else if (strcmp(check_input, "Logout") == 0) {
                         check = 1;
+
+                        // TODO перезаписать часть файла под санкции
+
                     } else if (strcmp(check_input, "Sanctions") == 0) {
                         printf("Enter a username and a limit on the number of commands\n");
                         scanf("%s %d", user_name, &number);
@@ -154,7 +157,6 @@ int main() {
                 }
 
                 check = 0;
-                count_command = 0;
                 lower_menu();
                 scanf("%d", &reg);
                 break;
