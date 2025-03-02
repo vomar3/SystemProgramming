@@ -52,6 +52,7 @@ void update_sanctions_in_file(const char *filename, const char *login, int new_s
 
 int main() {
     char flag[2], user_name[7];
+    char check_input[10];
     int current_id = -1, check = 0, login_command, count_command = 0, exit = 1, time, number;
     int reg, capacity = 2, user_count = 0;
     user *users = (user *) malloc (capacity * sizeof(user));
@@ -87,10 +88,37 @@ int main() {
 
                 while (check == 0 && users[current_id].sanctions != count_command) {
                     main_menu();
-                    scanf("%d", &login_command);
+                    //scanf("%d", &login_command);
+                    scanf("%s", check_input);
                     ++count_command;
 
-                    switch (login_command) {
+                    if (strcmp(check_input, "Time") == 0) {
+                        Time();
+                    } else if (strcmp(check_input, "Date") == 0) {
+                        Date();
+                    } else if (strcmp(check_input, "Howmuch") == 0) {
+                        printf("Enter the time and the flag\n");
+                        scanf("%d %s", &time, flag);
+                        clear_input_buffer();
+                        Howmuch(time, flag);
+                    } else if (strcmp(check_input, "Logout") == 0) {
+                        check = 1;
+                    } else if (strcmp(check_input, "Sanctions") == 0) {
+                        printf("Enter a username and a limit on the number of commands\n");
+                        scanf("%s %d", user_name, &number);
+                        clear_input_buffer();
+
+                        if (Sanctions(&users, user_name, number, user_count, current_id) == FOUND) {
+                            printf("Successful\n");
+                            update_sanctions_in_file("logins.txt", user_name, number);
+                        } else {
+                            printf("Error\n");
+                        }
+                    } else {
+                        printf("Try again\n");
+                    }
+
+                    /*switch (login_command) {
                         case 1:
                             Time();
                             break;
@@ -122,7 +150,7 @@ int main() {
                         default:
                             printf("Try again\n");
                             break;
-                    }
+                    }*/
                 }
 
                 check = 0;
@@ -337,8 +365,8 @@ void Howmuch(time_t past_time, char *flag) {
 
 void main_menu() {
     printf("------------------------------------------------\n");
-    printf("Write the following action in text.\n1 - Output the current time\n2 - Output the current date\n"
-           "3 - View the elapsed time\n4 - Logout\n5 - Set a limit on the number of operations\n");
+    printf("Write the following action in text.\nTime - Output the current time\nDate - Output the current date\n"
+           "Howmuch - View the elapsed time\nLogout - Logout\nSanctions - Set a limit on the number of operations\n");
     printf("------------------------------------------------\n");
 }
 
