@@ -36,24 +36,24 @@ void Howmuch(time_t past_time, char *flag);
 
 void free_users(user *users);
 
-error login(user **users, const int *count_of_users, int *id);
+error login(user **users, const int *count_of_users, int *id, const int *pass, const char *login_name);
 
 void main_menu();
 
 void lower_menu();
 
-error Sanctions(user **users, const char *name, unsigned int number, int count_user, int current_id);
+error Sanctions(user **users, const char *name, int count_user, int current_id, int *j);
 
-void save_users_to_file(user *users, int count_of_users);
+error save_users_to_file(user *users, int count_of_users);
 
 error load_users_from_file(user **users, int *count_of_users, int *capacity);
 
-void update_sanctions_in_file(const char *filename, const char *login, int new_sanctions);
+error update_sanctions_in_file(const char *filename, const char *login, int new_sanctions);
 
 int main() {
-    char flag[2], user_name[7];
+    char flag[2], user_name[7], login_name[7];
     char check_input[10];
-    int current_id = -1, check = 0, login_command, exit = 1, time, number;
+    int current_id = -1, check = 0, exit = 1, time, number, pass, j = -1, answer;
     int reg, capacity = 2, user_count = 0;
     user *users = (user *) malloc (capacity * sizeof(user));
     if (!users) {
@@ -61,6 +61,7 @@ int main() {
         return MEMORY_ERROR;
     }
 
+    // Загрузка всех юзеров, если они есть
     if (load_users_from_file(&users, &user_count, &capacity) != OK) {
         printf("Error loading users from file\n");
         return FILE_ERROR;
@@ -72,20 +73,34 @@ int main() {
     while (exit) {
         switch (reg) {
             case 1:
+                // Регистрация + Перекидывание юзера в файл
                 if (registration(&users, &user_count, &capacity) == OK) {
-                    save_users_to_file(users, user_count);
+                    if (save_users_to_file(users, user_count) != OK) {
+                        printf("Error opening file for saving users\n");
+                    }
                 }
 
                 lower_menu();
                 scanf("%d", &reg);
                 break;
             case 2:
-                if (login(&users, &user_count, &current_id) != OK) {
+                printf("Enter your login for authorization: ");
+                scanf("%6s", login_name);
+                clear_input_buffer();
+                printf("Enter your Pin-code for authorization: ");
+                scanf("%u", &pass);
+                clear_input_buffer();
+
+                if (login(&users, &user_count, &current_id, &pass, login_name) != OK) {
+                    printf("The user with this username or password was not found\n");
                     lower_menu();
                     scanf("%d", &reg);
                     break;
+                } else {
+                    printf("Login successful\n");
                 }
 
+                // До тех пор, пока не выход из аккаунта или количество операций (sanctions) не станет 0
                 while (check == 0 && users[current_id].sanctions != 0) {
                     main_menu();
                     scanf("%s", check_input);
@@ -104,56 +119,45 @@ int main() {
                     } else if (strcmp(check_input, "Logout") == 0) {
                         check = 1;
 
-                        // TODO перезаписать часть файла под санкции
+                        // Перезаписываю в файле количество оставшихся Sanctions после выхода из аккаунта
+                        if (update_sanctions_in_file("logins.txt", login_name, users[current_id].sanctions) != OK) {
+                            printf("Error with update sanctions in file\n");
+                        }
 
                     } else if (strcmp(check_input, "Sanctions") == 0) {
                         printf("Enter a username and a limit on the number of commands\n");
                         scanf("%s %d", user_name, &number);
                         clear_input_buffer();
 
-                        if (Sanctions(&users, user_name, number, user_count, current_id) == FOUND) {
-                            printf("Successful\n");
-                            update_sanctions_in_file("logins.txt", user_name, number);
+                        if (Sanctions(&users, user_name, user_count, current_id, &j) == FOUND) {
+
+                            printf("Write 12345 to confirm the action\n");
+                            scanf("%u", &answer);
+
+                            if (answer != 12345) {
+                                printf("Error input\n");
+                            } else {
+                                users[j].sanctions = number;
+                                printf("Successful\n");
+                                if (update_sanctions_in_file("logins.txt", user_name, number) != OK) {
+                                    printf("Error with file\n");
+                                }
+                            }
+
                         } else {
                             printf("Error\n");
                         }
                     } else {
                         printf("Try again\n");
                     }
+                }
 
-                    /*switch (login_command) {
-                        case 1:
-                            Time();
-                            break;
-                        case 2:
-                            Date();
-                            break;
-                        case 3:
-                            printf("Enter the time and the flag\n");
-                            scanf("%d %s", &time, flag);
-                            clear_input_buffer();
-                            Howmuch(time, flag);
-                            break;
-                        case 4:
-                            check = 1;
-                            break;
-                        case 5:
-                            printf("Enter a username and a limit on the number of commands\n");
-                            scanf("%s %d", user_name, &number);
-                            clear_input_buffer();
-
-                            if (Sanctions(&users, user_name, number, user_count, current_id) == FOUND) {
-                                printf("Successful\n");
-                                update_sanctions_in_file("logins.txt", user_name, number);
-                            } else {
-                                printf("Error\n");
-                            }
-
-                            break;
-                        default:
-                            printf("Try again\n");
-                            break;
-                    }*/
+                // Если был в юзере и закончилось количество операций, то нужно обновить информацию в файле
+                if (users[current_id].sanctions == 0) {
+                    printf("\nThe number of operations has ended\n");
+                    if (update_sanctions_in_file("logins.txt", login_name, users[current_id].sanctions) != OK) {
+                        printf("Error with update sanctions in file\n");
+                    }
                 }
 
                 check = 0;
@@ -204,6 +208,8 @@ void clear_input_buffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 }
+
+
 
 error registration(user **users, int *count_of_user, int *capacity) {
     if (!users || !count_of_user || !capacity) {
@@ -265,7 +271,6 @@ error registration(user **users, int *count_of_user, int *capacity) {
     strcpy((*users)[*count_of_user].login, nickname);
     (*users)[*count_of_user].Pin_code = pass;
     (*users)[*count_of_user].sanctions = -3;
-    printf("Registration is successful. Your data: \nLogin: %s\nPassword: %u\n", (*users)[*count_of_user].login, (*users)[*count_of_user].Pin_code);
     ++(*count_of_user);
 
     return OK;
@@ -287,53 +292,34 @@ void free_users(user *users) {
     free(users);
 }
 
-error login(user **users, const int *count_of_users, int *id) {
-    if (!users || !count_of_users) {
+error login(user **users, const int *count_of_users, int *id, const int *pass, const char *login_name) {
+    if (!users || !count_of_users || !pass || !login_name) {
         return MEMORY_ERROR;
     }
 
     int i;
-    char login[7];
-    unsigned int pass;
-    printf("Enter your login for authorization: ");
-    scanf("%6s", login);
-    clear_input_buffer();
-    printf("Enter your Pin-code for authorization: ");
-    scanf("%u", &pass);
-    clear_input_buffer();
 
     for (i = 0; i < *count_of_users; ++i) {
-        if ((*users)[i].Pin_code == pass && strcmp((*users)[i].login, login) == 0) {
-            printf("Login successful\n");
+        if ((*users)[i].Pin_code == *pass && strcmp((*users)[i].login, login_name) == 0) {
             *id = i;
             return OK;
         }
     }
 
-    printf("The user with this username or password was not found\n");
-
     return NOT_FOUND;
 }
 
-error Sanctions(user **users, const char *name, unsigned int number, int count_user, int current_id) {
-    if (!users || !name) {
+error Sanctions(user **users, const char *name, int count_user, int current_id, int *j) {
+    if (!users || !name || !j) {
         return MEMORY_ERROR;
     }
 
-    int i = 0;
-    unsigned int answer;
+    int i;
 
     for (i = 0; i < count_user; ++i) {
+        // Проверка current_id != i для того, чтобы исключить возможность навесить санкции на себя
         if (strcmp((*users)[i].login, name) == 0 && current_id != i) {
-            printf("Write 12345 to confirm the action\n");
-            scanf("%u", &answer);
-
-            if (answer != 12345) {
-                return INVALID_INPUT;
-            }
-
-            (*users)[i].sanctions = number;
-
+            *j = i;
             return FOUND;
         }
     }
@@ -378,17 +364,16 @@ void lower_menu() {
     printf("------------------------------------------------\n");
 }
 
-void save_users_to_file(user *users, int count_of_users) {
+error save_users_to_file(user *users, int count_of_users) {
     if (!users) {
-        return;
+        return MEMORY_ERROR;
     }
 
     int i;
     FILE *file = fopen("logins.txt", "w");
 
     if (!file) {
-        printf("Error opening file for saving users\n");
-        return;
+        return FILE_ERROR;
     }
 
     for (i = 0; i < count_of_users; i++) {
@@ -396,6 +381,8 @@ void save_users_to_file(user *users, int count_of_users) {
     }
 
     fclose(file);
+
+    return OK;
 }
 
 error load_users_from_file(user **users, int *count_of_users, int *capacity) {
@@ -426,22 +413,21 @@ error load_users_from_file(user **users, int *count_of_users, int *capacity) {
     return OK;
 }
 
-void update_sanctions_in_file(const char *filename, const char *login, int new_sanctions) {
+error update_sanctions_in_file(const char *filename, const char *login, int new_sanctions) {
     if (!filename || !login) {
-        return;
+        return MEMORY_ERROR;
     }
 
     FILE *file = fopen(filename, "r");
     if (!file) {
-        printf("Ошибка открытия файла!\n");
-        return;
+        return FILE_ERROR;
     }
 
+    // Временный файл, чтобы перезаписать данные с помощью него
     FILE *temp = fopen("temp.txt", "w");
     if (!temp) {
-        printf("Ошибка открытия временного файла!\n");
         fclose(file);
-        return;
+        return FILE_ERROR;
     }
 
     user temp_user;
@@ -456,4 +442,6 @@ void update_sanctions_in_file(const char *filename, const char *login, int new_s
     fclose(temp);
     remove(filename);
     rename("temp.txt", filename);
+
+    return OK;
 }
